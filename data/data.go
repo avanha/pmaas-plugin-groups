@@ -30,10 +30,10 @@ type Header struct {
 	Empty bool
 }
 
-// Divider marks where the entities of a group below the one on show begin.
+// Divider heads the entities after it: a kind of entity (Fans), or, when Major, the entities of the groups below the one on show.
 type Divider struct {
-	Text string
-	Href string
+	Text  string
+	Major bool
 }
 
 // Summary is the card for an entity whose plugin has no view of it: what it is called, what it is, and where its plugin's page is.

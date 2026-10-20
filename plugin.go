@@ -8,10 +8,12 @@ import (
 	"net/url"
 	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/avanha/pmaas-plugin-groups/data"
 	"github.com/avanha/pmaas-plugin-groups/internal/http"
 	spi "github.com/avanha/pmaas-spi"
+	"github.com/avanha/pmaas-spi/device"
 	"github.com/avanha/pmaas-spi/entity"
 	"github.com/avanha/pmaas-spi/group"
 	"github.com/avanha/pmaas-spi/logging"
@@ -228,16 +230,13 @@ func (p *plugin) Page(path string) (data.Page, bool) {
 			data.ChildGroup{Name: child.Name(), Href: p.href(child), Groups: len(child.children), Entities: c.countShown(child)})
 	}
 
-	// What is asked for, in the order it is drawn: the group's own, those of the groups below it, and for the root those in no group.
-	type section struct {
-		group *Group
-		ids   []string
+	// The entities of the group itself, and those of the groups below it, which come after.
+	var below []string
+	for _, d := range subtree(g) {
+		below = append(below, c.shown(d)...)
 	}
 
-	sections := []section{{group: g, ids: c.shown(g)}}
-	for _, d := range subtree(g) {
-		sections = append(sections, section{group: d, ids: c.shown(d)})
-	}
+	direct := c.shown(g)
 
 	var ungrouped []string
 
@@ -245,12 +244,7 @@ func (p *plugin) Page(path string) (data.Page, bool) {
 		ungrouped = p.ungrouped(c)
 	}
 
-	var ids []string
-	for _, s := range sections {
-		ids = append(ids, s.ids...)
-	}
-
-	ids = append(ids, ungrouped...)
+	ids := append(append(append([]string{}, direct...), below...), ungrouped...)
 	results := make(map[string]spi.EntityViewResult, len(ids))
 
 	for _, result := range p.container.GetEntityViews(ids) {
@@ -259,45 +253,47 @@ func (p *plugin) Page(path string) (data.Page, bool) {
 
 	seen := map[string]bool{}
 
-	draw := func(id string, explicit bool) (any, bool) {
-		item, key, ok := p.item(results[id], explicit)
+	draw := func(id string, explicit bool) (entry, bool) {
+		e, key, ok := p.entry(results[id], explicit)
 		if !ok || seen[key] {
-			return nil, false
+			return entry{}, false
 		}
 
 		seen[key] = true
 
-		return item, true
+		return e, true
 	}
 
 	// The groups' entities are drawn first, so that a card they own is theirs: a device whose fan is in a group and whose light is in
-	// none is one card, and it belongs to the group. What is in no group is drawn last, and is shown after the root's own.
-	sectionItems := make([][]any, len(sections))
+	// none is one card, and it belongs to the group. What is in no group is drawn last, and is listed with the group's own.
+	var directEntries, belowEntries []entry
 
-	for i, s := range sections {
-		for _, id := range s.ids {
-			if item, ok := draw(id, true); ok {
-				sectionItems[i] = append(sectionItems[i], item)
-			}
+	for _, id := range direct {
+		if e, ok := draw(id, true); ok {
+			directEntries = append(directEntries, e)
+		}
+	}
+
+	for _, id := range below {
+		if e, ok := draw(id, true); ok {
+			belowEntries = append(belowEntries, e)
 		}
 	}
 
 	for _, id := range ungrouped {
-		if item, ok := draw(id, false); ok {
-			sectionItems[0] = append(sectionItems[0], item)
+		if e, ok := draw(id, false); ok {
+			directEntries = append(directEntries, e)
 		}
 	}
 
-	for i, s := range sections {
-		if len(sectionItems[i]) == 0 {
-			continue
+	page.Items = append(page.Items, p.byCategory(directEntries)...)
+
+	if len(belowEntries) > 0 {
+		if len(directEntries) > 0 {
+			page.Items = append(page.Items, data.Divider{Text: "In the groups below", Major: true})
 		}
 
-		if i > 0 {
-			page.Items = append(page.Items, data.Divider{Text: p.relative(g, s.group), Href: p.href(s.group)})
-		}
-
-		page.Items = append(page.Items, sectionItems[i]...)
+		page.Items = append(page.Items, p.byCategory(belowEntries)...)
 	}
 
 	page.Header.Notes = p.notes(c, g)
@@ -306,11 +302,19 @@ func (p *plugin) Page(path string) (data.Page, bool) {
 	return page, true
 }
 
-// item is what the page draws for an entity: its view if its plugin gave one, or else a summary of it, if it was asked for by name.
+// entry is an entity as the page lists it: what is drawn, and what it is sorted by.
+type entry struct {
+	id       string
+	name     string
+	category string
+	item     any
+}
+
+// entry is what the page lists for an entity: its view if its plugin gave one, or else a summary of it, if it was asked for by name.
 // The key is the card's: entities that share one are drawn once.
-func (p *plugin) item(r spi.EntityViewResult, explicit bool) (item any, key string, ok bool) {
+func (p *plugin) entry(r spi.EntityViewResult, explicit bool) (e entry, key string, ok bool) {
 	if r.EntityId == "" {
-		return nil, "", false
+		return entry{}, "", false
 	}
 
 	if r.View != nil && r.Err == nil {
@@ -319,11 +323,16 @@ func (p *plugin) item(r spi.EntityViewResult, explicit bool) (item any, key stri
 			key = "entity:" + r.EntityId
 		}
 
-		return r.View.Value, key, true
+		category := r.View.Category
+		if category == "" {
+			category = categoryOfType(r.EntityType)
+		}
+
+		return entry{id: r.EntityId, name: r.Name, category: category, item: r.View.Value}, key, true
 	}
 
 	if !explicit && r.Err == nil {
-		return nil, "", false
+		return entry{}, "", false
 	}
 
 	summary := data.Summary{Name: r.Name, Plugin: r.Plugin, PluginHref: r.PluginPath}
@@ -335,7 +344,87 @@ func (p *plugin) item(r spi.EntityViewResult, explicit bool) (item any, key stri
 		summary.Error = r.Err.Error()
 	}
 
-	return summary, "entity:" + r.EntityId, true
+	return entry{id: r.EntityId, name: r.Name, category: categoryOfType(r.EntityType), item: summary}, "entity:" + r.EntityId, true
+}
+
+// categoryOfType is the kind of an entity from the type it was registered with, for a view that doesn't say.
+func categoryOfType(t reflect.Type) string {
+	if t == nil {
+		return group.CategoryOther
+	}
+
+	// Most specific first: a fan and a light are switches as well.
+	for _, k := range []struct {
+		kind     reflect.Type
+		category string
+	}{
+		{device.IFanType, group.CategoryFans},
+		{device.ILightType, group.CategoryLights},
+		{device.IPowerMonitorType, group.CategoryPower},
+		{device.IDoorSensorType, group.CategorySensors},
+		{device.IButtonType, group.CategoryButtons},
+		{device.ISwitchType, group.CategorySwitches},
+	} {
+		if t.AssignableTo(k.kind) {
+			return k.category
+		}
+	}
+
+	return group.CategoryOther
+}
+
+// byCategory is the entries as items, grouped by kind, each kind under a divider, in the configured order of kinds and then by name.
+func (p *plugin) byCategory(entries []entry) []any {
+	order := p.config.CategoryOrder
+	if len(order) == 0 {
+		order = group.Categories
+	}
+
+	rank := func(category string) int {
+		if category == group.CategoryOther {
+			return len(order) + 1
+		}
+
+		for i, name := range order {
+			if name == category {
+				return i
+			}
+		}
+
+		return len(order)
+	}
+
+	sorted := append([]entry{}, entries...)
+
+	sort.SliceStable(sorted, func(i, j int) bool {
+		a, b := sorted[i], sorted[j]
+
+		if ra, rb := rank(a.category), rank(b.category); ra != rb {
+			return ra < rb
+		}
+
+		if a.category != b.category {
+			return a.category < b.category
+		}
+
+		if an, bn := strings.ToLower(a.name), strings.ToLower(b.name); an != bn {
+			return an < bn
+		}
+
+		return a.id < b.id
+	})
+
+	var items []any
+
+	for i, e := range sorted {
+		if i == 0 || sorted[i-1].category != e.category {
+			items = append(items, data.Divider{Text: e.category})
+		}
+
+		items = append(items, e.item)
+	}
+
+	return items
 }
 
 func typeName(t reflect.Type) string {
@@ -383,27 +472,6 @@ func (p *plugin) crumbs(g *Group) []data.Crumb {
 	}
 
 	return crumbs
-}
-
-// relative is the group's path below the group on show, such as "Master Bedroom" or "Upstairs / Loft", for the divider that heads its entities.
-func (p *plugin) relative(from, to *Group) string {
-	var names []string
-
-	for at := to; at != nil && at != from; at = at.parent {
-		names = append([]string{at.Name()}, names...)
-	}
-
-	text := ""
-
-	for i, name := range names {
-		if i > 0 {
-			text += " / "
-		}
-
-		text += name
-	}
-
-	return text
 }
 
 // notes are what to tell about the group's page: entities configured for it that aren't there.

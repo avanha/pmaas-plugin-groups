@@ -11,6 +11,7 @@ import (
 
 	"github.com/avanha/pmaas-plugin-groups/data"
 	spi "github.com/avanha/pmaas-spi"
+	"github.com/avanha/pmaas-spi/device"
 	"github.com/avanha/pmaas-spi/entity"
 	"github.com/avanha/pmaas-spi/group"
 )
@@ -189,7 +190,7 @@ func TestTree_ABadNameOrRefPanics(t *testing.T) {
 	}
 }
 
-func TestPage_ShowsChildGroupsThenDirectEntitiesThenDescendantsUnderTheirGroups(t *testing.T) {
+func TestPage_ShowsChildGroupsThenTheEntitiesOfTheGroupsBelowGroupedByKindAndName(t *testing.T) {
 	h := newHouse(t)
 	h.c.views["fan"] = spi.EntityView{Key: "dev/fan", Value: "FAN CARD"}
 	h.c.views["thermo"] = spi.EntityView{Value: "THERMO CARD"}
@@ -209,11 +210,8 @@ func TestPage_ShowsChildGroupsThenDirectEntitiesThenDescendantsUnderTheirGroups(
 		t.Errorf("%+v", page.Header.Crumbs)
 	}
 
-	// Nothing is directly in Cougar, so it is all descendants, each room under its own divider.
-	want := []any{
-		data.Divider{Text: "Master Bedroom", Href: "/plugins/groups/?g=Cougar%2FMaster+Bedroom"}, "FAN CARD", "THERMO CARD",
-		data.Divider{Text: "Living Room", Href: "/plugins/groups/?g=Cougar%2FLiving+Room"}, "TV CARD",
-	}
+	// Nothing is directly in Cougar, so it is all from the rooms: one list, by kind and then name, with no heading for the rooms.
+	want := []any{data.Divider{Text: "Other"}, "FAN CARD", "THERMO CARD", "TV CARD"}
 
 	if !reflect.DeepEqual(page.Items, want) {
 		t.Errorf("got %#v\nwant %#v", page.Items, want)
@@ -231,12 +229,10 @@ func TestPage_DirectEntitiesComeBeforeThoseBelow(t *testing.T) {
 
 	page, _ := h.p.Page("Cougar")
 
-	if len(page.Items) < 3 || page.Items[0] != "HALL" {
+	// The group's own, under their kind, then a heading, and the rooms' under theirs.
+	if len(page.Items) < 5 || page.Items[0] != (data.Divider{Text: "Other"}) || page.Items[1] != "HALL" ||
+		page.Items[2] != (data.Divider{Text: "In the groups below", Major: true}) || page.Items[3] != (data.Divider{Text: "Other"}) {
 		t.Fatalf("%#v", page.Items)
-	}
-
-	if _, ok := page.Items[1].(data.Divider); !ok || page.Items[2] != "FAN" {
-		t.Errorf("%#v", page.Items)
 	}
 }
 
@@ -247,7 +243,7 @@ func TestPage_OneCardIsDrawnOnceWhateverNumberOfEntitiesShareItsKey(t *testing.T
 
 	page, _ := h.p.Page("Cougar/Master Bedroom")
 
-	if !reflect.DeepEqual(page.Items, []any{"DEVICE CARD"}) {
+	if !reflect.DeepEqual(page.Items, []any{data.Divider{Text: "Other"}, "DEVICE CARD"}) {
 		t.Errorf("%#v", page.Items)
 	}
 }
@@ -262,8 +258,8 @@ func TestPage_AnEntityWithoutAViewGetsASummaryAndAHiddenOneNothing(t *testing.T)
 
 	page, _ := h.p.Page("Cougar/Master Bedroom")
 
-	summary, ok := page.Items[0].(data.Summary)
-	if !ok || summary.Name != "Bedroom Fan" || summary.Plugin != "p" || summary.Type != "string" || len(page.Items) != 2 || page.Items[1] != "THERMO" {
+	summary, ok := page.Items[1].(data.Summary)
+	if !ok || summary.Name != "Bedroom Fan" || summary.Plugin != "p" || summary.Type != "string" || len(page.Items) != 3 || page.Items[2] != "THERMO" {
 		t.Errorf("%#v", page.Items)
 	}
 
@@ -328,7 +324,7 @@ func TestPage_TheRootShowsUngroupedEntitiesThatHaveViewsAndNotGroupsOrThoseWitho
 
 	// The root's own come first, alphabetical by name, then the groups' (whose entities have no views here, so they are summaries).
 	// Nothing is drawn for the clock (no view), the group, or what is in a group.
-	if len(page.Items) < 3 || page.Items[0] != "ALPHA" || page.Items[1] != "ZED" {
+	if len(page.Items) < 4 || page.Items[1] != "ALPHA" || page.Items[2] != "ZED" {
 		t.Errorf("%#v", page.Items)
 	}
 
@@ -387,7 +383,7 @@ func TestPage_AViewThatFailedGivesASummaryWithTheError(t *testing.T) {
 
 	page, _ := h.p.Page("Cougar/Master Bedroom")
 
-	if s, ok := page.Items[0].(data.Summary); !ok || s.Error != "no data" {
+	if s, ok := page.Items[1].(data.Summary); !ok || s.Error != "no data" {
 		t.Errorf("%#v", page.Items)
 	}
 }
@@ -445,8 +441,75 @@ func TestPage_ACardOwnedByAGroupedEntityIsNotStolenByAnUngroupedOneThatSharesIt(
 		t.Fatalf("the card should be drawn once: %#v", root.Items)
 	}
 
-	// And it is drawn under its group, not at the top among the root's own.
-	if _, ok := root.Items[0].(data.Divider); !ok {
-		t.Errorf("the card should follow a divider: %#v", root.Items)
+	// And it is listed with the rooms' entities, below the heading for them, not among the root's own.
+	if root.Items[0] == "DEVICE CARD" {
+		t.Errorf("the card should not be first: %#v", root.Items)
+	}
+}
+
+func typed(id, name string, t reflect.Type) entity.RegisteredEntityInfo {
+	return entity.RegisteredEntityInfo{Id: id, Name: name, EntityType: t}
+}
+
+func TestPage_EntitiesAreGroupedByKindFansTogetherAndSwitchesTogether(t *testing.T) {
+	h := newHouse(t)
+	plug, fan2, light := &ref{}, &ref{}, &ref{}
+	plug.set("plug")
+	fan2.set("fan2")
+	light.set("light")
+	h.master.Add(plug, fan2, light)
+	h.c.entities = []entity.RegisteredEntityInfo{
+		typed("fan", "Bedroom Fan", device.IFanType), typed("fan2", "Attic Fan", device.IFanType), typed("plug", "Aquarium Plug", device.ISwitchType),
+		typed("light", "Lamp", device.ILightType), entityInfo("thermo", "Master Bedroom"),
+	}
+
+	for _, id := range []string{"fan", "fan2", "plug", "light", "thermo"} {
+		h.c.views[id] = spi.EntityView{Value: id}
+	}
+
+	// A view can say what it is: the thermometer's plugin does, the others are known by their types.
+	h.c.views["thermo"] = spi.EntityView{Category: group.CategoryThermometers, Value: "thermo"}
+
+	page, _ := h.p.Page("Cougar/Master Bedroom")
+
+	want := []any{
+		data.Divider{Text: "Fans"}, "fan2", "fan", // by name: Attic Fan, Bedroom Fan
+		data.Divider{Text: "Lights"}, "light",
+		data.Divider{Text: "Switches"}, "plug",
+		data.Divider{Text: "Thermometers"}, "thermo",
+	}
+
+	if !reflect.DeepEqual(page.Items, want) {
+		t.Errorf("got %#v\nwant %#v", page.Items, want)
+	}
+}
+
+func TestPage_TheOrderOfKindsCanBeChangedAndOtherIsAlwaysLast(t *testing.T) {
+	h := newHouse(t)
+	h.p.config.CategoryOrder = []string{group.CategorySwitches, group.CategoryFans}
+	h.c.entities = []entity.RegisteredEntityInfo{
+		typed("fan", "F", device.IFanType), typed("thermo", "T", device.ISwitchType), typed("tv", "V", device.ILightType),
+	}
+
+	for _, id := range []string{"fan", "thermo", "tv"} {
+		h.c.views[id] = spi.EntityView{Value: id}
+	}
+
+	h.c.views["tv"] = spi.EntityView{Category: "Zebras", Value: "tv"}
+	h.living.Add()
+
+	page, _ := h.p.Page("Cougar")
+
+	var kinds []string
+
+	for _, item := range page.Items {
+		if d, ok := item.(data.Divider); ok {
+			kinds = append(kinds, d.Text)
+		}
+	}
+
+	// Named kinds first in the order given, then the plugin's own, alphabetically.
+	if !reflect.DeepEqual(kinds, []string{"Switches", "Fans", "Zebras"}) {
+		t.Errorf("%v", kinds)
 	}
 }

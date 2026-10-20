@@ -57,7 +57,7 @@ func TestHeader_SaysSoWhenTheGroupIsEmpty(t *testing.T) {
 func TestDividerAndSummary_NamesCannotBecomeMarkup(t *testing.T) {
 	for name, value := range map[string]any{
 		"groups_header":  data.Header{Crumbs: []data.Crumb{{Label: "<script>x</script>"}}, Children: []data.ChildGroup{{Name: "<script>x</script>"}}, Notes: []string{"<script>x</script>"}},
-		"groups_divider": data.Divider{Text: "<script>x</script>", Href: `"><script>x</script>`},
+		"groups_divider": data.Divider{Text: "<script>x</script>"},
 		"groups_summary": data.Summary{Name: "<script>x</script>", Type: "<b>", Plugin: "<i>", PluginHref: `"><x>`, Error: "<script>x</script>"},
 	} {
 		if strings.Contains(render(t, name, value), "<script>x") {
@@ -121,5 +121,15 @@ func TestHandler_RendersTheGroupAskedForAndSaysNotFoundForOthers(t *testing.T) {
 
 	if w.Code != http.StatusNotFound {
 		t.Errorf("%d", w.Code)
+	}
+}
+
+func TestDivider_HeadsAKindAndAMajorOneHeadsTheGroupsBelow(t *testing.T) {
+	if out := render(t, "groups_divider", data.Divider{Text: "Fans"}); !strings.Contains(out, `class="group-divider"`) || !strings.Contains(out, "Fans") {
+		t.Error(out)
+	}
+
+	if out := render(t, "groups_divider", data.Divider{Text: "In the groups below", Major: true}); !strings.Contains(out, `group-divider major`) {
+		t.Error(out)
 	}
 }

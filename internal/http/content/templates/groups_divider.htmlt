@@ -1,1 +1,1 @@
-<div class="group-divider">{{if .Href}}<a href="{{.Href | html}}">{{.Text | html}}</a>{{else}}{{.Text | html}}{{end}}</div>
+<div class="group-divider{{if .Major}} major{{end}}">{{.Text | html}}</div>

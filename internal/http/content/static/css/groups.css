@@ -13,6 +13,7 @@
 /* A divider is an item of the list that takes the whole row, so the entities after it start on a new one. Browsers without :has() show it as a card. */
 ol.entity-list li:has(> .group-divider) { width: 100%; box-sizing: border-box; border: 0; border-bottom: 1px solid #a19f9c; border-radius: 0; padding: 8px 0 2px 0; }
 .group-divider { font-weight: 600; }
+.group-divider.major { font-size: 1.1em; padding-top: 14px; }
 
 .entity-group-summary { display: flex; flex-flow: column; gap: 2px; }
 .entity-group-summary .name { font-weight: bold; overflow-wrap: anywhere; }
