@@ -154,7 +154,7 @@ func (p *plugin) claim() claimed {
 
 	p.config.tree.root.walk(func(g *Group) {
 		for _, m := range g.members {
-			id, ok := m.ref.EntityId()
+			id, ok := m.ref.RegisteredId()
 
 			switch {
 			case !ok:

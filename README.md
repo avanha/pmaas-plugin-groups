@@ -45,7 +45,7 @@ in it, and `Descendants()` for all of them. So another plugin or an automation c
 
 A group page draws each entity with the card its own plugin draws, so a plugin has to say how:
 
-1. Its handle for the entity implements `entity.Ref` (`spicommon.StubHolder` already has `EntityId`, so a handle that has one forwards it).
+1. Its handle for the entity implements `entity.Ref` (`spicommon.StubHolder` already has `RegisteredId`, so a handle that has one forwards it).
 2. After `RegisterEntity` the plugin calls `container.RegisterEntityView(id, fn)`. `fn` runs on the plugin's goroutine and returns an
    `spi.EntityView`: the value its card renderer takes, a `Key` (entities with the same key are one card: a device and the entities
    inside it are drawn once) and a `Category` (`group.CategoryFans` and so on).

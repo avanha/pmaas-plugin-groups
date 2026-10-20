@@ -144,7 +144,7 @@ type Named struct {
 
 var _ entity.Ref = (*Named)(nil)
 
-func (n *Named) EntityId() (string, bool) {
+func (n *Named) RegisteredId() (string, bool) {
 	lookup := n.lookup.Load()
 	if lookup == nil {
 		return "", false

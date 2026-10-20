@@ -22,7 +22,7 @@ type ref struct {
 	id string
 }
 
-func (r *ref) EntityId() (string, bool) {
+func (r *ref) RegisteredId() (string, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -299,15 +299,15 @@ func TestPage_NamedFindsTheOneEntityWithThatNameAndRefusesAnAmbiguousName(t *tes
 	h.p = NewPlugin(h.conf).(*plugin)
 	h.p.Init(&initContainer{fakeContainer: h.c})
 
-	if id, ok := porch.EntityId(); !ok || id != "a1" {
+	if id, ok := porch.RegisteredId(); !ok || id != "a1" {
 		t.Errorf("%q %v", id, ok)
 	}
 
-	if _, ok := twin.EntityId(); ok {
+	if _, ok := twin.RegisteredId(); ok {
 		t.Error("an ambiguous name was resolved")
 	}
 
-	if _, ok := h.conf.Named("Nobody").EntityId(); ok {
+	if _, ok := h.conf.Named("Nobody").RegisteredId(); ok {
 		t.Error("an unbound name was resolved")
 	}
 }
