@@ -1,0 +1,17 @@
+<div class="groups-header">
+    <nav class="crumbs" aria-label="Group">
+        {{range $i, $c := .Crumbs}}{{if $i}}<span class="sep">&rsaquo;</span>{{end}}{{if $c.Href}}<a href="{{$c.Href | html}}">{{$c.Label | html}}</a>{{else}}<span class="here">{{$c.Label | html}}</span>{{end}}{{end}}
+    </nav>
+    {{if .Children}}
+    <ul class="child-groups">
+        {{range .Children}}
+        <li><a class="group-tile" href="{{.Href | html}}">
+            <span class="group-name"><i class="bi bi-folder"></i> {{.Name | html}}</span>
+            <span class="group-counts">{{if .Groups}}{{.Groups}} group{{if ne .Groups 1}}s{{end}}, {{end}}{{.Entities}} item{{if ne .Entities 1}}s{{end}}</span>
+        </a></li>
+        {{end}}
+    </ul>
+    {{end}}
+    {{range .Notes}}<div class="group-note">{{. | html}}</div>{{end}}
+    {{if .Empty}}<div class="group-empty">Nothing is in this group.</div>{{end}}
+</div>

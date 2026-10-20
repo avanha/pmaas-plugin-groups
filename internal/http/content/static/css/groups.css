@@ -1,0 +1,20 @@
+.groups-header { display: flex; flex-flow: column; gap: 10px; }
+.groups-header .crumbs { font-size: 1.05em; }
+.groups-header .crumbs .sep { margin: 0 6px; opacity: 0.6; }
+.groups-header .crumbs .here { font-weight: bold; }
+.groups-header ul.child-groups { list-style: none; margin: 0; padding: 0; display: flex; flex-flow: row wrap; gap: 8px; }
+.groups-header .group-tile { display: flex; flex-flow: column; gap: 2px; padding: 8px 12px; min-width: 150px; border: 1px solid #a19f9c; border-radius: 3px; text-decoration: none; color: inherit; }
+.groups-header .group-tile:hover { background: rgba(128, 128, 128, 0.12); }
+.groups-header .group-name { font-weight: 600; }
+.groups-header .group-counts { font-size: 0.85em; opacity: 0.7; }
+.groups-header .group-note { font-size: 0.9em; opacity: 0.8; }
+.groups-header .group-empty { opacity: 0.7; }
+
+/* A divider is an item of the list that takes the whole row, so the entities after it start on a new one. Browsers without :has() show it as a card. */
+ol.entity-list li:has(> .group-divider) { width: 100%; box-sizing: border-box; border: 0; border-bottom: 1px solid #a19f9c; border-radius: 0; padding: 8px 0 2px 0; }
+.group-divider { font-weight: 600; }
+
+.entity-group-summary { display: flex; flex-flow: column; gap: 2px; }
+.entity-group-summary .name { font-weight: bold; overflow-wrap: anywhere; }
+.entity-group-summary .type, .entity-group-summary .where { font-size: 0.85em; opacity: 0.7; }
+.entity-group-summary .error { color: #d9534f; font-size: 0.9em; }

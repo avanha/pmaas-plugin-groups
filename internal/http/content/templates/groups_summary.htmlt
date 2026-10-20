@@ -1,0 +1,6 @@
+<div class="entity-group-summary">
+    <div class="name">{{.Name | html}}</div>
+    {{if .Type}}<div class="type">{{.Type | html}}</div>{{end}}
+    {{if .PluginHref}}<div class="where"><a href="{{.PluginHref | html}}">{{.Plugin | html}}</a></div>{{end}}
+    {{if .Error}}<div class="error">{{.Error | html}}</div>{{end}}
+</div>
