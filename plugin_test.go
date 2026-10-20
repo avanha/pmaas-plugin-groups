@@ -550,3 +550,45 @@ func TestPage_GroupTilesAreDifferentColoursByPosition(t *testing.T) {
 		t.Errorf("%+v", page.Header.Children)
 	}
 }
+
+func countOf(items []any, item any) int {
+	count := 0
+
+	for _, i := range items {
+		if i == item {
+			count++
+		}
+	}
+
+	return count
+}
+
+func TestPage_AFullerCardInAGroupReplacesTheCardOfTheEntityItCoversThatIsInNone(t *testing.T) {
+	h := newHouse(t)
+
+	// The fuller card is the thermometer's in Master Bedroom; the source thermometer it shows is in no group.
+	h.c.entities = append(h.c.entities, entityInfo("full", "Master Bedroom"))
+	h.thermo.set("full")
+	h.c.views["full"] = spi.EntityView{Key: "env/thermo", Covers: []string{"thermo"}, Value: "FULL CARD"}
+	h.c.views["thermo"] = spi.EntityView{Key: "src/thermo", Value: "SOURCE CARD"}
+
+	root, _ := h.p.Page("")
+
+	if countOf(root.Items, "FULL CARD") != 1 || countOf(root.Items, "SOURCE CARD") != 0 {
+		t.Errorf("%#v", root.Items)
+	}
+}
+
+func TestPage_ACardOfAGroupedEntityIsNotRepeatedByAFullerOneInNoGroupThatCoversIt(t *testing.T) {
+	h := newHouse(t)
+
+	h.c.entities = append(h.c.entities, entityInfo("full", "Master Bedroom"))
+	h.c.views["full"] = spi.EntityView{Key: "env/thermo", Covers: []string{"thermo"}, Value: "FULL CARD"}
+	h.c.views["thermo"] = spi.EntityView{Key: "src/thermo", Value: "SOURCE CARD"}
+
+	root, _ := h.p.Page("")
+
+	if countOf(root.Items, "SOURCE CARD") != 1 || countOf(root.Items, "FULL CARD") != 0 {
+		t.Errorf("%#v", root.Items)
+	}
+}

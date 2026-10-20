@@ -254,13 +254,39 @@ func (p *plugin) Page(path string) (data.Page, bool) {
 
 	seen := map[string]bool{}
 
+	// drawn are the entities whose card is on the page, and covered those whose cards a fuller one on the page makes redundant (see
+	// spi.EntityView.Covers). Whichever of an entity and the one covering it comes first on the page is the one that stays.
+	drawn := map[string]bool{}
+	covered := map[string]bool{}
+
 	draw := func(id string, explicit bool) (entry, bool) {
 		e, key, ok := p.entry(results[id], explicit)
-		if !ok || seen[key] {
+		if !ok || covered[id] {
+			return entry{}, false
+		}
+
+		var covers []string
+		if view := results[id].View; view != nil {
+			covers = view.Covers
+		}
+
+		for _, c := range covers {
+			if drawn[c] {
+				return entry{}, false
+			}
+		}
+
+		drawn[id] = true
+
+		if seen[key] {
 			return entry{}, false
 		}
 
 		seen[key] = true
+
+		for _, c := range covers {
+			covered[c] = true
+		}
 
 		return e, true
 	}
