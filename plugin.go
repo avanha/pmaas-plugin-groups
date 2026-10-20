@@ -4,6 +4,7 @@ package groups
 
 import (
 	"fmt"
+	"hash/fnv"
 	"log/slog"
 	"net/url"
 	"reflect"
@@ -225,9 +226,9 @@ func (p *plugin) Page(path string) (data.Page, bool) {
 	c := p.claim()
 	page := data.Page{Title: g.Name(), Header: data.Header{Crumbs: p.crumbs(g)}}
 
-	for _, child := range g.children {
+	for i, child := range g.children {
 		page.Header.Children = append(page.Header.Children,
-			data.ChildGroup{Name: child.Name(), Href: p.href(child), Groups: len(child.children), Entities: c.countShown(child)})
+			data.ChildGroup{Name: child.Name(), Href: p.href(child), Groups: len(child.children), Entities: c.countShown(child), Hue: tileHue(i)})
 	}
 
 	// The entities of the group itself, and those of the groups below it, which come after.
@@ -290,7 +291,7 @@ func (p *plugin) Page(path string) (data.Page, bool) {
 
 	if len(belowEntries) > 0 {
 		if len(directEntries) > 0 {
-			page.Items = append(page.Items, data.Divider{Text: "In the groups below", Major: true})
+			page.Items = append(page.Items, data.Divider{Text: "In the groups below", Major: true, Hue: belowHue})
 		}
 
 		page.Items = append(page.Items, p.byCategory(belowEntries)...)
@@ -373,6 +374,43 @@ func categoryOfType(t reflect.Type) string {
 	return group.CategoryOther
 }
 
+// belowHue is the colour of the heading for the groups below: a slate blue, set apart from the kinds.
+const belowHue = 215
+
+// categoryHues are the colours of the kinds the plugin knows. Any other is given one from its name, so it is always the same.
+var categoryHues = map[string]int{
+	group.CategoryFans:         175,
+	group.CategoryLights:       40,
+	group.CategorySwitches:     205,
+	group.CategoryThermometers: 12,
+	group.CategorySensors:      270,
+	group.CategoryPower:        135,
+	group.CategoryButtons:      325,
+	group.CategoryOther:        220,
+}
+
+func categoryHue(category string) int {
+	if hue, ok := categoryHues[category]; ok {
+		return hue
+	}
+
+	return hueOf(category)
+}
+
+// tileHue is the colour of the i'th group tile. The hues are a golden angle apart, so neighbours are as different as can be however
+// many there are, and a group keeps its colour for as long as the groups before it are the same.
+func tileHue(i int) int {
+	return (25 + i*137) % 360
+}
+
+// hueOf is a colour, 0 to 359, worked out from the text, so that the same text always has the same one.
+func hueOf(text string) int {
+	hash := fnv.New32a()
+	_, _ = hash.Write([]byte(text))
+
+	return int(hash.Sum32() % 360)
+}
+
 // byCategory is the entries as items, grouped by kind, each kind under a divider, in the configured order of kinds and then by name.
 func (p *plugin) byCategory(entries []entry) []any {
 	order := p.config.CategoryOrder
@@ -418,7 +456,7 @@ func (p *plugin) byCategory(entries []entry) []any {
 
 	for i, e := range sorted {
 		if i == 0 || sorted[i-1].category != e.category {
-			items = append(items, data.Divider{Text: e.category})
+			items = append(items, data.Divider{Text: e.category, Hue: categoryHue(e.category)})
 		}
 
 		items = append(items, e.item)

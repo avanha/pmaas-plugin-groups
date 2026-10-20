@@ -125,7 +125,8 @@ func TestHandler_RendersTheGroupAskedForAndSaysNotFoundForOthers(t *testing.T) {
 }
 
 func TestDivider_HeadsAKindAndAMajorOneHeadsTheGroupsBelow(t *testing.T) {
-	if out := render(t, "groups_divider", data.Divider{Text: "Fans"}); !strings.Contains(out, `class="group-divider"`) || !strings.Contains(out, "Fans") {
+	if out := render(t, "groups_divider", data.Divider{Text: "Fans", Hue: 175}); !strings.Contains(out, `class="group-divider"`) || !strings.Contains(out, "Fans") ||
+		!strings.Contains(out, `style="--h: 175"`) {
 		t.Error(out)
 	}
 

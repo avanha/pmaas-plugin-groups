@@ -5,7 +5,7 @@
     {{if .Children}}
     <ul class="child-groups">
         {{range .Children}}
-        <li><a class="group-tile" href="{{.Href | html}}">
+        <li><a class="group-tile" href="{{.Href | html}}" style="--h: {{.Hue}}">
             <span class="group-name"><i class="bi bi-folder"></i> {{.Name | html}}</span>
             <span class="group-counts">{{if .Groups}}{{.Groups}} group{{if ne .Groups 1}}s{{end}}, {{end}}{{.Entities}} item{{if ne .Entities 1}}s{{end}}</span>
         </a></li>

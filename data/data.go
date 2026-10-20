@@ -16,6 +16,9 @@ type ChildGroup struct {
 	// Groups is how many groups are directly under it, and Entities how many entities are in it and below it.
 	Groups   int
 	Entities int
+
+	// Hue is the colour of the tile, 0 to 359, the same for the same name.
+	Hue int
 }
 
 // Header is the top of a group's page: where it is, and the groups below it.
@@ -34,6 +37,9 @@ type Header struct {
 type Divider struct {
 	Text  string
 	Major bool
+
+	// Hue is the colour of the heading, 0 to 359.
+	Hue int
 }
 
 // Summary is the card for an entity whose plugin has no view of it: what it is called, what it is, and where its plugin's page is.

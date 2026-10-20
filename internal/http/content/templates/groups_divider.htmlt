@@ -1,1 +1,1 @@
-<div class="group-divider{{if .Major}} major{{end}}">{{.Text | html}}</div>
+<div class="group-divider{{if .Major}} major{{end}}" style="--h: {{.Hue}}">{{.Text | html}}</div>

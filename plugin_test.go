@@ -211,7 +211,7 @@ func TestPage_ShowsChildGroupsThenTheEntitiesOfTheGroupsBelowGroupedByKindAndNam
 	}
 
 	// Nothing is directly in Cougar, so it is all from the rooms: one list, by kind and then name, with no heading for the rooms.
-	want := []any{data.Divider{Text: "Other"}, "FAN CARD", "THERMO CARD", "TV CARD"}
+	want := []any{kindDivider("Other"), "FAN CARD", "THERMO CARD", "TV CARD"}
 
 	if !reflect.DeepEqual(page.Items, want) {
 		t.Errorf("got %#v\nwant %#v", page.Items, want)
@@ -230,8 +230,8 @@ func TestPage_DirectEntitiesComeBeforeThoseBelow(t *testing.T) {
 	page, _ := h.p.Page("Cougar")
 
 	// The group's own, under their kind, then a heading, and the rooms' under theirs.
-	if len(page.Items) < 5 || page.Items[0] != (data.Divider{Text: "Other"}) || page.Items[1] != "HALL" ||
-		page.Items[2] != (data.Divider{Text: "In the groups below", Major: true}) || page.Items[3] != (data.Divider{Text: "Other"}) {
+	if len(page.Items) < 5 || page.Items[0] != (kindDivider("Other")) || page.Items[1] != "HALL" ||
+		page.Items[2] != (belowDivider) || page.Items[3] != (kindDivider("Other")) {
 		t.Fatalf("%#v", page.Items)
 	}
 }
@@ -243,7 +243,7 @@ func TestPage_OneCardIsDrawnOnceWhateverNumberOfEntitiesShareItsKey(t *testing.T
 
 	page, _ := h.p.Page("Cougar/Master Bedroom")
 
-	if !reflect.DeepEqual(page.Items, []any{data.Divider{Text: "Other"}, "DEVICE CARD"}) {
+	if !reflect.DeepEqual(page.Items, []any{kindDivider("Other"), "DEVICE CARD"}) {
 		t.Errorf("%#v", page.Items)
 	}
 }
@@ -473,10 +473,10 @@ func TestPage_EntitiesAreGroupedByKindFansTogetherAndSwitchesTogether(t *testing
 	page, _ := h.p.Page("Cougar/Master Bedroom")
 
 	want := []any{
-		data.Divider{Text: "Fans"}, "fan2", "fan", // by name: Attic Fan, Bedroom Fan
-		data.Divider{Text: "Lights"}, "light",
-		data.Divider{Text: "Switches"}, "plug",
-		data.Divider{Text: "Thermometers"}, "thermo",
+		kindDivider("Fans"), "fan2", "fan", // by name: Attic Fan, Bedroom Fan
+		kindDivider("Lights"), "light",
+		kindDivider("Switches"), "plug",
+		kindDivider("Thermometers"), "thermo",
 	}
 
 	if !reflect.DeepEqual(page.Items, want) {
@@ -511,5 +511,42 @@ func TestPage_TheOrderOfKindsCanBeChangedAndOtherIsAlwaysLast(t *testing.T) {
 	// Named kinds first in the order given, then the plugin's own, alphabetically.
 	if !reflect.DeepEqual(kinds, []string{"Switches", "Fans", "Zebras"}) {
 		t.Errorf("%v", kinds)
+	}
+}
+
+// kindDivider is the divider the page puts above a kind.
+func kindDivider(text string) data.Divider {
+	return data.Divider{Text: text, Hue: categoryHue(text)}
+}
+
+var belowDivider = data.Divider{Text: "In the groups below", Major: true, Hue: belowHue}
+
+func TestHues_AreStableAndEachKindHasItsOwn(t *testing.T) {
+	seen := map[int]string{}
+
+	for category, hue := range categoryHues {
+		if other, clash := seen[hue]; clash {
+			t.Errorf("%s and %s have the same hue %d", category, other, hue)
+		}
+
+		seen[hue] = category
+	}
+
+	if hueOf("Zebras") != hueOf("Zebras") || hueOf("Zebras") < 0 || hueOf("Zebras") > 359 || categoryHue("Zebras") != hueOf("Zebras") {
+		t.Error("a hue from a name is not stable or not in range")
+	}
+
+	if categoryHue(group.CategoryFans) != categoryHues[group.CategoryFans] {
+		t.Error("a known kind does not have its own hue")
+	}
+}
+
+func TestPage_GroupTilesAreDifferentColoursByPosition(t *testing.T) {
+	h := newHouse(t)
+
+	page, _ := h.p.Page("Cougar")
+
+	if page.Header.Children[0].Hue != tileHue(0) || page.Header.Children[1].Hue != tileHue(1) || tileHue(0) == tileHue(1) {
+		t.Errorf("%+v", page.Header.Children)
 	}
 }
