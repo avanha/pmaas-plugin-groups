@@ -29,9 +29,10 @@ several is not a match, and the page says some entities are missing).
 ## The page
 
 `/plugins/groups/` is the root, `?g=Cougar/Master Bedroom` a group. It shows breadcrumbs to walk back up, the groups directly under it as
-tiles with counts, the group's own entities, and then, under "In the groups below", those of the groups below it. Entities are listed by
-kind, fans together and switches together, each kind under a heading and in name order. `CategoryOrder` sets the order of the kinds
-(default: Fans, Lights, Switches, Thermometers, Sensors, Power, Buttons; "Other" is last).
+tiles with counts, the group's own entities, and then, under "In the groups below", those of the groups below it. The root ("All") is one
+list of everything, with no such heading. Entities are listed by kind, fans together and switches together, each kind under a heading and
+in name order. `CategoryOrder` sets the order of the kinds (default: Thermometers, Fans, Lights, Switches, Sensors, Power, Buttons;
+"Other" is last).
 
 The menu entry is "Groups", with priority 70, below Status, Alerts and Automations. The assembly can change it with
 `config.PluginConfig{MenuPriority: &p}`.

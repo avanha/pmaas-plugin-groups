@@ -6,7 +6,7 @@ type PluginConfig struct {
 	// the server's clock, is not. The default is true: a thermometer that turns up in the house appears without being asked for.
 	ShowUngrouped bool
 
-	// CategoryOrder is the order the kinds of entity are listed in on a page (see group.Categories, the default). A kind not named is
+	// CategoryOrder is the order the kinds of entity are listed in on a page (thermometers first, then group.Categories, the default). A kind not named is
 	// listed after those that are, alphabetically, and "Other" is always last.
 	CategoryOrder []string
 

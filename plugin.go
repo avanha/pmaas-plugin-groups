@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/url"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 
@@ -313,6 +314,11 @@ func (p *plugin) Page(path string) (data.Page, bool) {
 		}
 	}
 
+	// The root is every entity there is, so it is one list by kind: there is no "below" to be told apart from.
+	if g.parent == nil {
+		directEntries, belowEntries = append(directEntries, belowEntries...), nil
+	}
+
 	page.Items = append(page.Items, p.byCategory(directEntries)...)
 
 	if len(belowEntries) > 0 {
@@ -437,11 +443,16 @@ func hueOf(text string) int {
 	return int(hash.Sum32() % 360)
 }
 
+// defaultCategoryOrder is the kinds in the order a page lists them if none was configured: the thermometers first, since a page of a
+// room is first of all what it is like in there, and then the others in the order of group.Categories.
+var defaultCategoryOrder = append([]string{group.CategoryThermometers},
+	slices.DeleteFunc(slices.Clone(group.Categories), func(category string) bool { return category == group.CategoryThermometers })...)
+
 // byCategory is the entries as items, grouped by kind, each kind under a divider, in the configured order of kinds and then by name.
 func (p *plugin) byCategory(entries []entry) []any {
 	order := p.config.CategoryOrder
 	if len(order) == 0 {
-		order = group.Categories
+		order = defaultCategoryOrder
 	}
 
 	rank := func(category string) int {

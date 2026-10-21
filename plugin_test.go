@@ -322,9 +322,9 @@ func TestPage_TheRootShowsUngroupedEntitiesThatHaveViewsAndNotGroupsOrThoseWitho
 
 	page, _ := h.p.Page("")
 
-	// The root's own come first, alphabetical by name, then the groups' (whose entities have no views here, so they are summaries).
-	// Nothing is drawn for the clock (no view), the group, or what is in a group.
-	if len(page.Items) < 4 || page.Items[1] != "ALPHA" || page.Items[2] != "ZED" {
+	// The root is one list by kind, the groups' entities among the rest (they have no views here, so they are summaries) and nothing to say
+	// which are which. Nothing is drawn for the clock (no view), the group, or what is in a group.
+	if len(page.Items) < 6 || !contains(page.Items, "ALPHA") || !contains(page.Items, "ZED") || contains(page.Items, belowDivider) {
 		t.Errorf("%#v", page.Items)
 	}
 
@@ -472,11 +472,12 @@ func TestPage_EntitiesAreGroupedByKindFansTogetherAndSwitchesTogether(t *testing
 
 	page, _ := h.p.Page("Cougar/Master Bedroom")
 
+	// The thermometers come first.
 	want := []any{
+		kindDivider("Thermometers"), "thermo",
 		kindDivider("Fans"), "fan2", "fan", // by name: Attic Fan, Bedroom Fan
 		kindDivider("Lights"), "light",
 		kindDivider("Switches"), "plug",
-		kindDivider("Thermometers"), "thermo",
 	}
 
 	if !reflect.DeepEqual(page.Items, want) {
