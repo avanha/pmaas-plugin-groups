@@ -29,7 +29,7 @@ several is not a match, and the page says some entities are missing).
 ## The page
 
 `/plugins/groups/` is the root, `?g=Cougar/Master Bedroom` a group. It shows breadcrumbs to walk back up, the groups directly under it as
-tiles with counts, and then the group's entities and those of the groups below it, as one list: there is no heading for which room an entity
+tiles with counts (in alphabetical order, whatever order the assembly made them in), and then the group's entities and those of the groups below it, as one list: there is no heading for which room an entity
 is in. Entities are listed by kind, fans together and switches together, each kind under a heading and in name order. The kinds are in the
 same order on every page, by priority, the highest first: Thermometers 100, Fans 90, Lights 80, Switches 70, Sensors 60, Power 50,
 Buttons 40, a plugin's own kind 10, Other 0. `CategoryPriority` (a map from the kind's name to a number) changes those, as the menu's

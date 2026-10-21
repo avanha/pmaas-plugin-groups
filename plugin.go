@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/url"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 
@@ -226,7 +227,11 @@ func (p *plugin) Page(path string) (data.Page, bool) {
 	c := p.claim()
 	page := data.Page{Title: g.Name(), Header: data.Header{Crumbs: p.crumbs(g)}}
 
-	for i, child := range g.children {
+	// The groups under it in alphabetical order, whatever order the assembly made them in. The colours go by position in that order.
+	children := slices.Clone(g.children)
+	slices.SortStableFunc(children, func(a, b *Group) int { return strings.Compare(strings.ToLower(a.Name()), strings.ToLower(b.Name())) })
+
+	for i, child := range children {
 		page.Header.Children = append(page.Header.Children,
 			data.ChildGroup{Name: child.Name(), Href: p.href(child), Groups: len(child.children), Entities: c.countShown(child), Hue: tileHue(i)})
 	}

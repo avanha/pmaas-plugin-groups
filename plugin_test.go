@@ -201,7 +201,7 @@ func TestPage_ShowsChildGroupsThenTheEntitiesOfTheGroupsBelowGroupedByKindAndNam
 		t.Fatal("no page")
 	}
 
-	if page.Title != "Cougar" || len(page.Header.Children) != 2 || page.Header.Children[0].Name != "Master Bedroom" || page.Header.Children[0].Entities != 2 {
+	if page.Title != "Cougar" || len(page.Header.Children) != 2 || page.Header.Children[1].Name != "Master Bedroom" || page.Header.Children[1].Entities != 2 {
 		t.Errorf("%+v", page.Header)
 	}
 
@@ -640,5 +640,29 @@ func TestPage_ACardOfAGroupedEntityIsNotRepeatedByAFullerOneInNoGroupThatCoversI
 
 	if countOf(root.Items, "SOURCE CARD") != 1 || countOf(root.Items, "FULL CARD") != 0 {
 		t.Errorf("%#v", root.Items)
+	}
+}
+
+func TestPage_ChildGroupsAreInAlphabeticalOrderWhateverOrderTheyWereMadeIn(t *testing.T) {
+	conf := NewPluginConfig()
+	house := conf.Root().Group("Cougar")
+
+	for _, name := range []string{"Office", "basement", "Garage", "Easton's Room"} {
+		house.Group(name)
+	}
+
+	p := NewPlugin(conf).(*plugin)
+	p.Init(&initContainer{fakeContainer: &fakeContainer{views: map[string]spi.EntityView{}}})
+
+	page, _ := p.Page("Cougar")
+
+	var names []string
+
+	for _, child := range page.Header.Children {
+		names = append(names, child.Name)
+	}
+
+	if want := []string{"basement", "Easton's Room", "Garage", "Office"}; !reflect.DeepEqual(names, want) {
+		t.Errorf("%v, want %v", names, want)
 	}
 }
