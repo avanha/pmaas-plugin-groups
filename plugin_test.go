@@ -218,7 +218,7 @@ func TestPage_ShowsChildGroupsThenTheEntitiesOfTheGroupsBelowGroupedByKindAndNam
 	}
 }
 
-func TestPage_DirectEntitiesComeBeforeThoseBelow(t *testing.T) {
+func TestPage_AGroupsOwnEntitiesAndThoseOfTheGroupsBelowAreOneListByKindWithNoHeadingForTheRooms(t *testing.T) {
 	h := newHouse(t)
 	extra := &ref{}
 	extra.set("extra")
@@ -229,10 +229,27 @@ func TestPage_DirectEntitiesComeBeforeThoseBelow(t *testing.T) {
 
 	page, _ := h.p.Page("Cougar")
 
-	// The group's own, under their kind, then a heading, and the rooms' under theirs.
-	if len(page.Items) < 5 || page.Items[0] != (kindDivider("Other")) || page.Items[1] != "HALL" ||
-		page.Items[2] != (belowDivider) || page.Items[3] != (kindDivider("Other")) {
+	for _, item := range page.Items {
+		if d, ok := item.(data.Divider); ok && d.Text != "Other" {
+			t.Fatalf("a heading that is not a kind: %#v", page.Items)
+		}
+	}
+
+	if !contains(page.Items, "HALL") || !contains(page.Items, "FAN") {
 		t.Fatalf("%#v", page.Items)
+	}
+
+	// Every kind is under one heading, so they are told apart by name only.
+	headings := 0
+
+	for _, item := range page.Items {
+		if _, ok := item.(data.Divider); ok {
+			headings++
+		}
+	}
+
+	if headings != 1 {
+		t.Errorf("%d headings: %#v", headings, page.Items)
 	}
 }
 
@@ -324,7 +341,7 @@ func TestPage_TheRootShowsUngroupedEntitiesThatHaveViewsAndNotGroupsOrThoseWitho
 
 	// The root is one list by kind, the groups' entities among the rest (they have no views here, so they are summaries) and nothing to say
 	// which are which. Nothing is drawn for the clock (no view), the group, or what is in a group.
-	if len(page.Items) < 6 || !contains(page.Items, "ALPHA") || !contains(page.Items, "ZED") || contains(page.Items, belowDivider) {
+	if len(page.Items) < 6 || !contains(page.Items, "ALPHA") || !contains(page.Items, "ZED") {
 		t.Errorf("%#v", page.Items)
 	}
 
@@ -485,33 +502,67 @@ func TestPage_EntitiesAreGroupedByKindFansTogetherAndSwitchesTogether(t *testing
 	}
 }
 
-func TestPage_TheOrderOfKindsCanBeChangedAndOtherIsAlwaysLast(t *testing.T) {
-	h := newHouse(t)
-	h.p.config.CategoryOrder = []string{group.CategorySwitches, group.CategoryFans}
-	h.c.entities = []entity.RegisteredEntityInfo{
-		typed("fan", "F", device.IFanType), typed("thermo", "T", device.ISwitchType), typed("tv", "V", device.ILightType),
-	}
-
-	for _, id := range []string{"fan", "thermo", "tv"} {
-		h.c.views[id] = spi.EntityView{Value: id}
-	}
-
-	h.c.views["tv"] = spi.EntityView{Category: "Zebras", Value: "tv"}
-	h.living.Add()
-
-	page, _ := h.p.Page("Cougar")
-
+func kindsOf(items []any) []string {
 	var kinds []string
 
-	for _, item := range page.Items {
+	for _, item := range items {
 		if d, ok := item.(data.Divider); ok {
 			kinds = append(kinds, d.Text)
 		}
 	}
 
-	// Named kinds first in the order given, then the plugin's own, alphabetically.
-	if !reflect.DeepEqual(kinds, []string{"Switches", "Fans", "Zebras"}) {
-		t.Errorf("%v", kinds)
+	return kinds
+}
+
+func TestPage_KindsAreInTheOrderOfTheirPrioritiesOnEveryPage(t *testing.T) {
+	h := newHouse(t)
+	h.c.entities = []entity.RegisteredEntityInfo{
+		typed("fan", "F", device.IFanType), typed("thermo", "T", device.ISwitchType), typed("tv", "V", device.ILightType),
+		typed("pump", "P", device.ISwitchType),
+	}
+
+	for _, id := range []string{"fan", "thermo", "tv", "pump"} {
+		h.c.views[id] = spi.EntityView{Value: id}
+	}
+
+	h.c.views["tv"] = spi.EntityView{Category: "Zebras", Value: "tv"}
+	h.c.views["pump"] = spi.EntityView{Category: group.CategoryThermometers, Value: "pump"}
+
+	// Oasis' pump is the one thermometer here, so the root has every kind and Cougar, which hasn't, has the rest in the same order.
+	for path, want := range map[string][]string{
+		"":       {"Thermometers", "Fans", "Switches", "Zebras"},
+		"Cougar": {"Fans", "Switches", "Zebras"},
+		"Oasis":  {"Thermometers"},
+	} {
+		page, _ := h.p.Page(path)
+
+		if got := kindsOf(page.Items); !reflect.DeepEqual(got, want) {
+			t.Errorf("%q: %v, want %v", path, got, want)
+		}
+	}
+}
+
+func TestPage_ThePrioritiesOfKindsCanBeChangedAndUnknownKindsAreAfterTheKnownAndBeforeOther(t *testing.T) {
+	h := newHouse(t)
+	h.p.config.CategoryPriority = map[string]int{group.CategorySwitches: 200, "Zebras": 95}
+	h.c.entities = []entity.RegisteredEntityInfo{
+		typed("fan", "F", device.IFanType), typed("thermo", "T", device.ISwitchType), typed("tv", "V", device.ILightType),
+		typed("pump", "P", device.IDoorSensorType),
+	}
+
+	for _, id := range []string{"fan", "thermo", "tv", "pump"} {
+		h.c.views[id] = spi.EntityView{Value: id}
+	}
+
+	h.c.views["tv"] = spi.EntityView{Category: "Zebras", Value: "tv"}
+	h.c.views["pump"] = spi.EntityView{Category: "Aardvarks", Value: "pump"}
+	h.c.views["thermo"] = spi.EntityView{Category: group.CategoryOther, Value: "thermo"}
+
+	page, _ := h.p.Page("")
+
+	// Fans 90 and Zebras 95 (given), then Aardvarks at the 10 an unknown kind has, then Other at 0.
+	if got, want := kindsOf(page.Items), []string{"Zebras", "Fans", "Aardvarks", "Other"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("%v, want %v", got, want)
 	}
 }
 
@@ -519,8 +570,6 @@ func TestPage_TheOrderOfKindsCanBeChangedAndOtherIsAlwaysLast(t *testing.T) {
 func kindDivider(text string) data.Divider {
 	return data.Divider{Text: text, Hue: categoryHue(text)}
 }
-
-var belowDivider = data.Divider{Text: "In the groups below", Major: true, Hue: belowHue}
 
 func TestHues_AreStableAndEachKindHasItsOwn(t *testing.T) {
 	seen := map[int]string{}

@@ -33,10 +33,9 @@ type Header struct {
 	Empty bool
 }
 
-// Divider heads the entities after it: a kind of entity (Fans), or, when Major, the entities of the groups below the one on show.
+// Divider heads the entities after it: a kind of entity (Fans).
 type Divider struct {
-	Text  string
-	Major bool
+	Text string
 
 	// Hue is the colour of the heading, 0 to 359.
 	Hue int

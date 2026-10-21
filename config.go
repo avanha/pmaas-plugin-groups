@@ -6,9 +6,10 @@ type PluginConfig struct {
 	// the server's clock, is not. The default is true: a thermometer that turns up in the house appears without being asked for.
 	ShowUngrouped bool
 
-	// CategoryOrder is the order the kinds of entity are listed in on a page (thermometers first, then group.Categories, the default). A kind not named is
-	// listed after those that are, alphabetically, and "Other" is always last.
-	CategoryOrder []string
+	// CategoryPriority sets where a kind of entity is listed on a page, by the kind's name (see the group package): the higher the earlier,
+	// and kinds of the same priority by name. It is the same on every page. What is not given has its default: Thermometers 100, Fans 90,
+	// Lights 80, Switches 70, Sensors 60, Power 50, Buttons 40, a plugin's own kind 10 and Other 0.
+	CategoryPriority map[string]int
 
 	// Name is what the plugin is called in the menu. The default is "Groups".
 	Name string

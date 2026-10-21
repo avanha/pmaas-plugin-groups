@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/url"
 	"reflect"
-	"slices"
 	"sort"
 	"strings"
 
@@ -293,41 +292,29 @@ func (p *plugin) Page(path string) (data.Page, bool) {
 	}
 
 	// The groups' entities are drawn first, so that a card they own is theirs: a device whose fan is in a group and whose light is in
-	// none is one card, and it belongs to the group. What is in no group is drawn last, and is listed with the group's own.
-	var directEntries, belowEntries []entry
+	// none is one card, and it belongs to the group. What is in no group is drawn last. All of it is one list by kind, the page of a group
+	// holding the entities of the groups below it too, with nothing to tell which are whose.
+	var entries []entry
 
 	for _, id := range direct {
 		if e, ok := draw(id, true); ok {
-			directEntries = append(directEntries, e)
+			entries = append(entries, e)
 		}
 	}
 
 	for _, id := range below {
 		if e, ok := draw(id, true); ok {
-			belowEntries = append(belowEntries, e)
+			entries = append(entries, e)
 		}
 	}
 
 	for _, id := range ungrouped {
 		if e, ok := draw(id, false); ok {
-			directEntries = append(directEntries, e)
+			entries = append(entries, e)
 		}
 	}
 
-	// The root is every entity there is, so it is one list by kind: there is no "below" to be told apart from.
-	if g.parent == nil {
-		directEntries, belowEntries = append(directEntries, belowEntries...), nil
-	}
-
-	page.Items = append(page.Items, p.byCategory(directEntries)...)
-
-	if len(belowEntries) > 0 {
-		if len(directEntries) > 0 {
-			page.Items = append(page.Items, data.Divider{Text: "In the groups below", Major: true, Hue: belowHue})
-		}
-
-		page.Items = append(page.Items, p.byCategory(belowEntries)...)
-	}
+	page.Items = append(page.Items, p.byCategory(entries)...)
 
 	page.Header.Notes = p.notes(c, g)
 	page.Header.Empty = len(page.Items) == 0 && len(page.Header.Children) == 0
@@ -406,9 +393,6 @@ func categoryOfType(t reflect.Type) string {
 	return group.CategoryOther
 }
 
-// belowHue is the colour of the heading for the groups below: a slate blue, set apart from the kinds.
-const belowHue = 215
-
 // categoryHues are the colours of the kinds the plugin knows. Any other is given one from its name, so it is always the same.
 var categoryHues = map[string]int{
 	group.CategoryFans:         175,
@@ -443,39 +427,46 @@ func hueOf(text string) int {
 	return int(hash.Sum32() % 360)
 }
 
-// defaultCategoryOrder is the kinds in the order a page lists them if none was configured: the thermometers first, since a page of a
-// room is first of all what it is like in there, and then the others in the order of group.Categories.
-var defaultCategoryOrder = append([]string{group.CategoryThermometers},
-	slices.DeleteFunc(slices.Clone(group.Categories), func(category string) bool { return category == group.CategoryThermometers })...)
+// categoryPriorities are the priorities of the kinds the plugin knows: the higher the earlier on a page, the same on every page. The
+// thermometers are first, since a page of a room is first of all what it is like in there. A kind the plugin doesn't know (a plugin's
+// own) has unknownCategoryPriority.
+var categoryPriorities = map[string]int{
+	group.CategoryThermometers: 100,
+	group.CategoryFans:         90,
+	group.CategoryLights:       80,
+	group.CategorySwitches:     70,
+	group.CategorySensors:      60,
+	group.CategoryPower:        50,
+	group.CategoryButtons:      40,
+	group.CategoryOther:        0,
+}
 
-// byCategory is the entries as items, grouped by kind, each kind under a divider, in the configured order of kinds and then by name.
+// unknownCategoryPriority is the priority of a kind that has none: after the known kinds and before "Other".
+const unknownCategoryPriority = 10
+
+// categoryPriority is where the kind is on a page, from the configuration or else the defaults.
+func (p *plugin) categoryPriority(category string) int {
+	if priority, ok := p.config.CategoryPriority[category]; ok {
+		return priority
+	}
+
+	if priority, ok := categoryPriorities[category]; ok {
+		return priority
+	}
+
+	return unknownCategoryPriority
+}
+
+// byCategory is the entries as items, grouped by kind, each kind under a divider, by the priority of the kind (the highest first, and by name
+// for kinds of the same) and then by name.
 func (p *plugin) byCategory(entries []entry) []any {
-	order := p.config.CategoryOrder
-	if len(order) == 0 {
-		order = defaultCategoryOrder
-	}
-
-	rank := func(category string) int {
-		if category == group.CategoryOther {
-			return len(order) + 1
-		}
-
-		for i, name := range order {
-			if name == category {
-				return i
-			}
-		}
-
-		return len(order)
-	}
-
 	sorted := append([]entry{}, entries...)
 
 	sort.SliceStable(sorted, func(i, j int) bool {
 		a, b := sorted[i], sorted[j]
 
-		if ra, rb := rank(a.category), rank(b.category); ra != rb {
-			return ra < rb
+		if pa, pb := p.categoryPriority(a.category), p.categoryPriority(b.category); pa != pb {
+			return pa > pb
 		}
 
 		if a.category != b.category {
