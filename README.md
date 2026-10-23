@@ -38,6 +38,14 @@ priorities do, and kinds of the same priority are in name order.
 The menu entry is "Groups", with priority 70, below Status, Alerts and Automations. The assembly can change it with
 `config.PluginConfig{MenuPriority: &p}`.
 
+## Old browsers
+
+The page is used on an iPad that stopped at iOS 9 (Safari 9), so the stylesheet avoids what it doesn't have, at no cost to a modern browser:
+colours are `hsl(var(--h), 55%, 45%)` with commas, and `hsla(..., 0.07)` for a see-through one (the newer spelling without commas is dropped
+whole by an old Safari, and with it every colour and border); items of a flex container are spaced with margins, not `gap` (it needs Safari 14.1);
+and the list item that holds a kind's heading is found by `:has()` where there is one and, elsewhere, by a class that `groups.js` (plain
+ES5) puts on it. Tests in `internal/http` (`oldbrowsers_test.go`, `js_test/`) look for what it doesn't have.
+
 ## Groups are entities
 
 Each group is registered as a `group.IGroup` (see `pmaas-spi/group`): its path, its parent, its children, the ids of the entities directly

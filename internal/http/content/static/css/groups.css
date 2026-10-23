@@ -1,32 +1,46 @@
-/* Colour comes from a hue (--h, 0 to 359) set on each heading and tile, so that one set of rules does for every kind. */
-.groups-header { display: flex; flex-flow: column; gap: 10px; }
+/* Colour comes from a hue (--h, 0 to 359) set on each heading and tile, so that one set of rules does for every kind.
+   It is written hsl(var(--h), 55%, 45%), with commas, and hsla(..., 0.07) for a see-through one: the newer spelling, hsl(var(--h) 55% 45% / 0.07),
+   is not understood by Safari 9 (an old iPad), which then drops the whole declaration and draws no colour and no border. */
+.groups-header { display: flex; flex-flow: column; }
 .groups-header .crumbs { font-size: 1.05em; }
 .groups-header .crumbs a { color: #2b6cb0; text-decoration: none; }
 .groups-header .crumbs a:hover { text-decoration: underline; }
 .groups-header .crumbs .sep { margin: 0 6px; opacity: 0.6; }
 .groups-header .crumbs .here { font-weight: bold; }
-.groups-header ul.child-groups { list-style: none; margin: 0; padding: 0; display: flex; flex-flow: row wrap; gap: 8px; }
+.groups-header ul.child-groups { list-style: none; margin: 0; padding: 0; display: flex; flex-flow: row wrap; }
 .groups-header .group-tile {
-    display: flex; flex-flow: column; gap: 2px; padding: 8px 12px; min-width: 150px; text-decoration: none; color: inherit;
-    border: 1px solid hsl(var(--h) 30% 75%); border-left: 5px solid hsl(var(--h) 55% 45%); border-radius: 3px;
-    background: hsl(var(--h) 60% 50% / 0.07);
+    display: flex; flex-flow: column; padding: 8px 12px; min-width: 150px; text-decoration: none; color: inherit;
+    border: 1px solid hsl(var(--h), 30%, 75%); border-left: 5px solid hsl(var(--h), 55%, 45%); border-radius: 3px;
+    background: hsla(var(--h), 60%, 50%, 0.07);
 }
-.groups-header .group-tile:hover { background: hsl(var(--h) 60% 50% / 0.18); }
-.groups-header .group-name { font-weight: 600; color: hsl(var(--h) 55% 28%); }
-.groups-header .group-name .bi { color: hsl(var(--h) 55% 45%); }
+.groups-header .group-tile:hover { background: hsla(var(--h), 60%, 50%, 0.18); }
+.groups-header .group-name { font-weight: 600; color: hsl(var(--h), 55%, 28%); }
+.groups-header .group-name .bi { color: hsl(var(--h), 55%, 45%); }
 .groups-header .group-counts { font-size: 0.85em; opacity: 0.7; }
 .groups-header .group-note { font-size: 0.9em; opacity: 0.8; }
 .groups-header .group-empty { opacity: 0.7; }
 
-/* A divider is an item of the list that takes the whole row, so the entities after it start on a new one. Browsers without :has() show it as a card. */
+/* A divider is an item of the list that takes the whole row, so the entities after it start on a new one. The item is the list's <li>, which is
+   found from the divider in two ways, in two rules because a browser that does not understand one selector drops the whole rule: :has(), and
+   a class that groups.js puts on it, for the browsers without :has() (Safari before 15.4, an old iPad among them) where a divider would
+   otherwise be a card among the others, with entities beside it. */
 ol.entity-list li:has(> .group-divider) { width: 100%; box-sizing: border-box; border: 0; border-radius: 0; padding: 0; }
+ol.entity-list li.group-divider-item { width: 100%; box-sizing: border-box; border: 0; border-radius: 0; padding: 0; }
 .group-divider {
-    font-weight: 600; padding: 4px 10px; color: hsl(var(--h) 55% 26%);
-    border-left: 5px solid hsl(var(--h) 55% 45%); border-radius: 0 3px 3px 0;
-    background: linear-gradient(90deg, hsl(var(--h) 60% 50% / 0.18), hsl(var(--h) 60% 50% / 0.02) 75%);
+    font-weight: 600; padding: 4px 10px; color: hsl(var(--h), 55%, 26%);
+    border-left: 5px solid hsl(var(--h), 55%, 45%); border-radius: 0 3px 3px 0;
+    background: linear-gradient(90deg, hsla(var(--h), 60%, 50%, 0.18), hsla(var(--h), 60%, 50%, 0.02) 75%);
 }
 
-.entity-group-summary { display: flex; flex-flow: column; gap: 2px; }
-.entity-group-summary .name { font-weight: bold; overflow-wrap: anywhere; }
+.entity-group-summary { display: flex; flex-flow: column; }
+.entity-group-summary .name { font-weight: bold; word-wrap: break-word; overflow-wrap: anywhere; }
 .entity-group-summary .type, .entity-group-summary .where { font-size: 0.85em; opacity: 0.7; }
 .entity-group-summary .error { color: #d9534f; font-size: 0.9em; }
+
+/* Spacing between the items of the flex containers above, with margins and not `gap`: gap in a flex container needs Safari 14.1, and an iPad
+   that stopped at iOS 9 to 14.0 draws everything touching without it. Rows that wrap give each item a margin on its right and below (the last
+   one's is invisible), and columns put it between one item and the next. */
+.groups-header > * + * { margin-top: 10px; }
+.groups-header ul.child-groups > * { margin: 0 8px 8px 0; }
+.groups-header .group-tile > * + * { margin-top: 2px; }
+.entity-group-summary > * + * { margin-top: 2px; }

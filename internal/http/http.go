@@ -24,6 +24,7 @@ func templateInfo(name string) *spi.TemplateInfo {
 		FuncMap: template.FuncMap{},
 		Paths:   []string{"templates/" + name + ".htmlt"},
 		Styles:  []string{"css/groups.css"},
+		Scripts: []string{"js/groups.js"},
 	}
 }
 
